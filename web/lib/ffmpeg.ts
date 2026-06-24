@@ -1,24 +1,20 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync, chmodSync } from "node:fs";
+import { chmodSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
-// Prefer the system binary (present on Vercel's runtime) so we don't need to
-// bundle the much larger ffmpeg-static/ffprobe-static packages into the
-// function. Fall back to the npm packages for local dev.
-function resolveBinary(systemPath: string, fallback: () => string): string {
-  if (existsSync(systemPath)) {
-    return systemPath;
-  }
-  return fallback();
-}
+// On Vercel, use the system binaries directly — ffmpeg-static/ffprobe-static's
+// binaries (336MB combined) would otherwise be bundled into the function and
+// exceed Vercel's 250MB size limit. Locally, fall back to the npm packages.
+// require() is only called off of Vercel so the binaries are never referenced
+// (and therefore never traced/bundled) in the Vercel build.
+const isVercel = process.env.VERCEL === "1";
 
-const ffmpegPath = resolveBinary("/usr/bin/ffmpeg", () => require("ffmpeg-static") as string);
-const ffprobePath = resolveBinary(
-  "/usr/bin/ffprobe",
-  () => (require("ffprobe-static") as { path: string }).path
-);
+const ffmpegPath = isVercel ? "/usr/bin/ffmpeg" : (require("ffmpeg-static") as string);
+const ffprobePath = isVercel
+  ? "/usr/bin/ffprobe"
+  : (require("ffprobe-static") as { path: string }).path;
 
 // The packaged ffmpeg-static/ffprobe-static binaries sometimes lose their
 // executable bit (e.g. after install/deploy packaging), which makes execFile
