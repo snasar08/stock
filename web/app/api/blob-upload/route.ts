@@ -15,7 +15,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     const clientToken = await generateClientTokenFromReadWriteToken({
       token: process.env.BLOB_READ_WRITE_TOKEN,
       pathname: filename,
-      allowedContentTypes: ["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/m4a"],
+      allowedContentTypes: [
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/m4a",
+        "audio/wav",
+        "audio/x-wav",
+        "application/octet-stream",
+        "",
+      ],
       addRandomSuffix: true,
       validUntil: Date.now() + 30 * 60 * 1000,
     });
