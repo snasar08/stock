@@ -17,6 +17,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       pathname: filename,
       allowedContentTypes: ["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/m4a"],
       addRandomSuffix: true,
+      validUntil: Date.now() + 30 * 60 * 1000,
     });
 
     return NextResponse.json({ clientToken });
