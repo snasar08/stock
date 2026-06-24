@@ -1,16 +1,29 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { chmodSync } from "node:fs";
+import { existsSync, chmodSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
-// ffmpeg-static/ffprobe-static export the binary path as their default export.
-const ffmpegPath = require("ffmpeg-static") as string;
-const ffprobePath = (require("ffprobe-static") as { path: string }).path;
+// Prefer the system binary (present on Vercel's runtime) so we don't need to
+// bundle the much larger ffmpeg-static/ffprobe-static packages into the
+// function. Fall back to the npm packages for local dev.
+function resolveBinary(systemPath: string, fallback: () => string): string {
+  if (existsSync(systemPath)) {
+    return systemPath;
+  }
+  return fallback();
+}
 
-// The packaged ffmpeg-static binary sometimes loses its executable bit
-// (e.g. after install/deploy packaging), which makes execFile fail with
-// EACCES. Force it back on; no-op if already executable.
+const ffmpegPath = resolveBinary("/usr/bin/ffmpeg", () => require("ffmpeg-static") as string);
+const ffprobePath = resolveBinary(
+  "/usr/bin/ffprobe",
+  () => (require("ffprobe-static") as { path: string }).path
+);
+
+// The packaged ffmpeg-static/ffprobe-static binaries sometimes lose their
+// executable bit (e.g. after install/deploy packaging), which makes execFile
+// fail with EACCES. Force it back on; no-op if already executable or the
+// filesystem is read-only (e.g. the system binary path).
 for (const bin of [ffmpegPath, ffprobePath]) {
   try {
     chmodSync(bin, 0o755);
