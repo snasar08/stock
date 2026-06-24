@@ -14,9 +14,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           addRandomSuffix: true,
         };
       },
-      onUploadCompleted: async () => {
-        // No-op: the client moves on to /api/probe once the blob URL is returned.
-      },
+      onUploadCompleted: async () => {},
     });
 
     return NextResponse.json(jsonResponse);
