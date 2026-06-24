@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { put } from "@vercel/blob/client";
 import { Segment, Meta, writeTxt, writeJson, writeSrt, writeXml } from "@/lib/format";
 import { addSpeakersGap } from "@/lib/speakers";
 
@@ -27,9 +27,17 @@ export default function Page() {
 
     try {
       setStatus("Uploading…");
-      const blob = await upload(file.name, file, {
+      const tokenRes = await fetch("/api/blob-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+      });
+      if (!tokenRes.ok) throw new Error((await tokenRes.json()).error || "Failed to get upload token");
+      const { clientToken } = await tokenRes.json();
+
+      const blob = await put(file.name, file, {
         access: "public",
-        handleUploadUrl: "/api/blob-upload",
+        token: clientToken,
       });
 
       setStatus("Upload complete, starting transcription…");
