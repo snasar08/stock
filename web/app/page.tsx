@@ -32,7 +32,7 @@ export default function Page() {
         handleUploadUrl: "/api/blob-upload",
       });
 
-      setStatus("Converting audio…");
+      setStatus("Upload complete, starting transcription…");
       const probeRes = await fetch("/api/probe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,6 +40,7 @@ export default function Page() {
       });
       if (!probeRes.ok) throw new Error((await probeRes.json()).error || "Probe failed");
       const { duration, totalChunks } = await probeRes.json();
+      setStatus("Converting audio…");
 
       let allSegments: Segment[] = [];
       let nextIndex = 0;

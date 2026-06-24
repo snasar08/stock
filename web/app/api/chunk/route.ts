@@ -6,7 +6,7 @@ import { toChunk } from "@/lib/ffmpeg";
 import { transcribeChunk } from "@/lib/groq";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const CHUNK_SECONDS = 600;
 
