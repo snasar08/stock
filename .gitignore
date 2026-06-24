@@ -1,0 +1,9 @@
+node_modules/
+config.js
+dist/
+python-dist/
+build-pyinstaller/
+ffmpeg-bin/
+.pybuild-venv/
+*.spec
+.DS_Store

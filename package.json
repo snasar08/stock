@@ -1,0 +1,56 @@
+{
+  "name": "momentum-transcribe",
+  "version": "1.0.0",
+  "description": "Drag-and-drop audio transcription using Groq Whisper, packaged as a Mac app.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:python": "bash scripts/build_python.sh",
+    "build:ffmpeg": "bash scripts/fetch_ffmpeg.sh",
+    "dist": "npm run build:python && npm run build:ffmpeg && electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.momentum.transcribe",
+    "productName": "Momentum Transcribe",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.js",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python-dist/transcribe",
+        "to": "python-dist/transcribe"
+      },
+      {
+        "from": "ffmpeg-bin",
+        "to": "ffmpeg"
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
+  }
+}
