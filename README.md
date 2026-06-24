@@ -42,6 +42,24 @@ Apple Silicon) build notes — building a single universal2 binary requires
 either a universal2 Python interpreter or lipo-merging two PyInstaller
 builds (one from an Intel Mac/runner, one from Apple Silicon).
 
+## Building automatically via GitHub Actions
+
+`.github/workflows/build-dmg.yml` builds both an Apple Silicon (`macos-14`)
+and an Intel (`macos-13`) dmg in parallel and, when triggered by a `v*` tag
+push, attaches both to a GitHub release.
+
+Setup:
+1. Add a repository secret named `GROQ_API_KEY` (Settings → Secrets and
+   variables → Actions) with the real key. The workflow writes it into a
+   local `config.js` at build time — it never touches the committed source.
+2. Push a tag (`git tag v1.0.0 && git push origin v1.0.0`) to build + release,
+   or run the workflow manually via the Actions tab ("Run workflow") to just
+   get the two dmg artifacts without cutting a release.
+
+This sidesteps the "can't cross-compile from Linux" limitation entirely —
+each arch's PyInstaller binary and ffmpeg build happens natively on a
+matching macOS runner.
+
 ## Security note on the bundled API key
 
 The Groq API key is hardcoded in `main.js` so the app works with zero setup
