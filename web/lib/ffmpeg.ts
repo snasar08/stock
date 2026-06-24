@@ -4,17 +4,12 @@ import { chmodSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
-// On Vercel, use the system binaries directly — ffmpeg-static/ffprobe-static's
-// binaries (336MB combined) would otherwise be bundled into the function and
-// exceed Vercel's 250MB size limit. Locally, fall back to the npm packages.
-// require() is only called off of Vercel so the binaries are never referenced
-// (and therefore never traced/bundled) in the Vercel build.
-const isVercel = process.env.VERCEL === "1";
-
-const ffmpegPath = isVercel ? "/usr/bin/ffmpeg" : (require("ffmpeg-static") as string);
-const ffprobePath = isVercel
-  ? "/usr/bin/ffprobe"
-  : (require("ffprobe-static") as { path: string }).path;
+// ffmpeg-static/ffprobe-static export the binary path as their default export.
+// next.config.js's outputFileTracingIncludes narrows the bundled files to just
+// the Linux x64 binaries (~80MB combined) instead of every platform/arch
+// ffprobe-static ships (336MB), keeping the function under Vercel's 250MB cap.
+const ffmpegPath = require("ffmpeg-static") as string;
+const ffprobePath = (require("ffprobe-static") as { path: string }).path;
 
 // The packaged ffmpeg-static/ffprobe-static binaries sometimes lose their
 // executable bit (e.g. after install/deploy packaging), which makes execFile
