@@ -53,8 +53,6 @@ jobs:
         run: bash scripts/fetch_ffmpeg.sh
 
       - name: Build dmg
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --mac ${{ matrix.builder_flag }}
 
       - name: Upload dmg artifact
