@@ -16,7 +16,7 @@
   "build": {
     "appId": "com.momentum.transcribe",
     "productName": "Momentum Transcribe",
-    "publish": "never",
+    "publish": null,
     "directories": {
       "output": "dist"
     },
