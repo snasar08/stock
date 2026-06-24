@@ -13,6 +13,10 @@ source .pybuild-venv/bin/activate
 pip install --upgrade pip
 pip install -r python/requirements.txt
 
+# resemblyzer (via webrtcvad's old-style metadata) drags in the obsolete
+# "typing" backport package, which PyInstaller refuses to run alongside.
+pip uninstall -y typing
+
 rm -rf python-dist build-pyinstaller transcribe.spec
 pyinstaller \
   --name transcribe \
