@@ -60,6 +60,50 @@ This sidesteps the "can't cross-compile from Linux" limitation entirely —
 each arch's PyInstaller binary and ffmpeg build happens natively on a
 matching macOS runner.
 
+## Web app (`/web`, deployed to Vercel)
+
+A Next.js version of the same tool lives in `web/` — drop a file in the
+browser, it transcribes the same way and offers the same 4 files
+(`.txt`/`.json`/`.srt`/`.xml`) as downloads. The Groq key is read from a
+server-only environment variable (`GROQ_API_KEY`), never sent to the
+browser.
+
+Differences from the desktop app, both forced by Vercel's free-tier
+limits:
+- **Speaker labels** always use the same gap-based heuristic the desktop
+  app falls back to (alternate `Speaker 1`/`Speaker 2` on any >1.5s pause
+  between segments) — no resemblyzer/torch voice-embedding step, since a
+  Python function bundling torch is too large/slow for Vercel's Hobby
+  plan.
+- **Long episodes** are handled by having the *browser* drive the
+  per-chunk loop (one `/api/chunk` call per ~10-minute chunk, called
+  sequentially), rather than one long server request, since Vercel
+  caps function duration at 60s on the Hobby plan regardless of streaming.
+
+### One-time Vercel setup (I can't do this part — no Vercel access from here)
+
+1. In the Vercel dashboard: **New Project → Import** this GitHub repo,
+   set **Root Directory** to `web`.
+2. In that project's **Storage** tab, create a **Blob** store and connect
+   it to the project — this auto-injects `BLOB_READ_WRITE_TOKEN`.
+3. In **Settings → Environment Variables**, add `GROQ_API_KEY` with the
+   real key (same key used in the desktop app's `config.js` / GitHub
+   Actions secret).
+4. Deploy. Every push to the linked branch redeploys automatically.
+
+### Running it locally
+
+```
+cd web
+cp .env.local.example .env.local   # fill in your real Groq key
+npm install
+npm run dev
+```
+
+(Local dev still needs a Vercel Blob token in `.env.local` — pull it
+with `vercel env pull` once the project above is linked, or use a Blob
+store created via the Vercel CLI.)
+
 ## Security note on the bundled API key
 
 The Groq API key is hardcoded in `main.js` so the app works with zero setup
