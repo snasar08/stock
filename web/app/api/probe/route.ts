@@ -27,7 +27,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     const buf = Buffer.from(await new Response(result.stream).arrayBuffer());
     await writeFile(localPath, buf);
 
-    const duration = await ffprobeDuration(localPath);
+    let duration: number;
+    try {
+      duration = await ffprobeDuration(localPath);
+    } catch (error) {
+      const e = error as { stderr?: string; message?: string };
+      console.error(
+        `ffprobe failed for blobUrl=${blobUrl} (downloaded ${buf.length} bytes):`,
+        e.stderr || e.message || error
+      );
+      return NextResponse.json(
+        { error: `ffprobe failed: ${e.stderr || e.message || "unknown error"}` },
+        { status: 500 }
+      );
+    }
+
     const totalChunks = Math.max(1, Math.ceil(duration / CHUNK_SECONDS));
 
     return NextResponse.json({ duration, totalChunks });

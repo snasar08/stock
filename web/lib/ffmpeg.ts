@@ -40,8 +40,10 @@ export async function ffprobeDuration(path: string): Promise<number> {
       path,
     ]);
     return parseFloat(stdout.trim()) || 0;
-  } catch {
-    return 0;
+  } catch (error) {
+    const e = error as { stderr?: string; message?: string };
+    console.error(`ffprobeDuration failed for ${path}:`, e.stderr || e.message || error);
+    throw error;
   }
 }
 
@@ -53,6 +55,8 @@ export async function toChunk(
 ): Promise<void> {
   await execFileAsync(ffmpegPath, [
     "-y",
+    "-f",
+    "m4a",
     "-i",
     src,
     "-ss",
