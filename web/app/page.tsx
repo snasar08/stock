@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { put } from "@vercel/blob/client";
 import { Segment, Meta, writeTxt, writeJson, writeSrt, writeXml } from "@/lib/format";
 import { addSpeakersGap } from "@/lib/speakers";
 
@@ -26,25 +25,42 @@ export default function Page() {
     setProgress(0);
 
     try {
-      setStatus("Uploading…");
-      const tokenRes = await fetch("/api/blob-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
-      });
-      if (!tokenRes.ok) throw new Error((await tokenRes.json()).error || "Failed to get upload token");
-      const { clientToken } = await tokenRes.json();
+      const CHUNK_SIZE = 4 * 1024 * 1024;
+      const uploadId = crypto.randomUUID();
+      const uploadChunkCount = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+      const priorUrls: string[] = [];
+      let blobUrl = "";
 
-      const blob = await put(file.name, file, {
-        access: "public",
-        token: clientToken,
-      });
+      for (let i = 0; i < uploadChunkCount; i++) {
+        setStatus(`Uploading chunk ${i + 1} of ${uploadChunkCount}`);
+        setProgress(Math.round(((i + 0.5) / uploadChunkCount) * 10));
+
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const formData = new FormData();
+        formData.append("uploadId", uploadId);
+        formData.append("index", String(i));
+        formData.append("total", String(uploadChunkCount));
+        formData.append("filename", file.name);
+        formData.append("chunk", file.slice(start, end));
+        formData.append("priorUrls", JSON.stringify(priorUrls));
+
+        const uploadRes = await fetch("/api/blob-upload", { method: "POST", body: formData });
+        if (!uploadRes.ok) throw new Error((await uploadRes.json()).error || "Upload chunk failed");
+        const uploadJson = await uploadRes.json();
+
+        if (uploadJson.done) {
+          blobUrl = uploadJson.url;
+        } else {
+          priorUrls.push(uploadJson.url);
+        }
+      }
 
       setStatus("Upload complete, starting transcription…");
       const probeRes = await fetch("/api/probe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blobUrl: blob.url }),
+        body: JSON.stringify({ blobUrl }),
       });
       if (!probeRes.ok) throw new Error((await probeRes.json()).error || "Probe failed");
       const { duration, totalChunks } = await probeRes.json();
@@ -55,13 +71,13 @@ export default function Page() {
 
       for (let i = 0; i < totalChunks; i++) {
         setStatus(`Transcribing chunk ${i + 1} of ${totalChunks}`);
-        setProgress(Math.round(((i + 0.5) / totalChunks) * 90));
+        setProgress(10 + Math.round(((i + 0.5) / totalChunks) * 80));
 
         const chunkRes = await fetch("/api/chunk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            blobUrl: blob.url,
+            blobUrl,
             chunkIndex: i,
             duration,
             startIndex: nextIndex,
