@@ -1,4 +1,4 @@
-import { del, put } from "@vercel/blob";
+import { del, get, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -21,7 +21,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const tempBlob = await put(`tmp/${uploadId}/${index}`, chunk, { access: "public" });
+    const tempBlob = await put(`tmp/${uploadId}/${index}`, chunk, {
+      access: "private",
+      addRandomSuffix: true,
+    });
 
     if (index < total - 1) {
       return NextResponse.json({ done: false, url: tempBlob.url });
@@ -32,16 +35,16 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const buffers: Buffer[] = [];
     for (const url of allTempUrls) {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch temp chunk: ${res.status}`);
+      const result = await get(url, { access: "private" });
+      if (!result || result.statusCode !== 200) {
+        throw new Error(`Failed to fetch temp chunk: ${url}`);
       }
-      buffers.push(Buffer.from(await res.arrayBuffer()));
+      buffers.push(Buffer.from(await new Response(result.stream).arrayBuffer()));
     }
     const merged = Buffer.concat(buffers);
 
     const finalBlob = await put(filename, merged, {
-      access: "public",
+      access: "private",
       addRandomSuffix: true,
     });
 

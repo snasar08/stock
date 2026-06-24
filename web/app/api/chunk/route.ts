@@ -1,3 +1,4 @@
+import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -40,11 +41,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   const chunkPath = path.join(dir, "chunk.mp3");
 
   try {
-    const res = await fetch(blobUrl);
-    if (!res.ok) {
-      throw new Error(`Failed to download blob: ${res.status}`);
+    const result = await get(blobUrl, { access: "private" });
+    if (!result || result.statusCode !== 200) {
+      throw new Error(`Failed to download blob: ${blobUrl}`);
     }
-    const buf = Buffer.from(await res.arrayBuffer());
+    const buf = Buffer.from(await new Response(result.stream).arrayBuffer());
     await writeFile(sourcePath, buf);
 
     const start = chunkIndex * CHUNK_SECONDS;
