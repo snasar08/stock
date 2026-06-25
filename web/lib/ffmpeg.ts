@@ -65,8 +65,6 @@ export async function toChunk(
     "16000",
     "-b:a",
     "32k",
-    "-af",
-    "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-50dB",
     dst,
   ]);
 }
