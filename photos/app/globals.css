@@ -428,3 +428,34 @@ select.select-input {
   border-radius: 8px;
   padding: 8px 12px;
 }
+
+/* Face tagging */
+
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tag-input {
+  flex: 1;
+  max-width: 240px;
+  background: #1e1e22;
+  border: 1px solid #3a3f52;
+  border-radius: 6px;
+  color: #f0f0f0;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+/* Shared album banner */
+
+.share-banner {
+  font-size: 12px;
+  color: #b8e6c2;
+  background: #1f3326;
+  border: 1px solid #2f5a3d;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+}

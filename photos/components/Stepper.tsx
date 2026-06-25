@@ -3,6 +3,8 @@ import { Phase } from "@/lib/types";
 const STEPS: { phase: Phase; label: string }[] = [
   { phase: "upload", label: "Upload" },
   { phase: "review", label: "Review Duplicates" },
+  { phase: "enhance", label: "Enhance" },
+  { phase: "faces", label: "Tag Faces" },
   { phase: "configure", label: "Configure Crop" },
   { phase: "process", label: "Process & Export" },
 ];

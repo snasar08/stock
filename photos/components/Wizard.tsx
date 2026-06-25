@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Stepper from "./Stepper";
 import UploadStep from "./steps/UploadStep";
 import ReviewDuplicatesStep from "./steps/ReviewDuplicatesStep";
+import EnhanceStep from "./steps/EnhanceStep";
+import FaceTagStep from "./steps/FaceTagStep";
 import ConfigureCropStep from "./steps/ConfigureCropStep";
 import ProcessExportStep from "./steps/ProcessExportStep";
 import {
@@ -19,6 +21,8 @@ import {
 import { WorkerPool } from "@/lib/workerPool";
 import { runScanPipeline } from "@/lib/scanPipeline";
 import { defaultWorkerPoolSize } from "@/lib/capabilities";
+import { ALBUM_PARAM, decodeAlbumState } from "@/lib/shareLink";
+import { mergeFromShareLink } from "@/lib/persistence";
 
 const DEFAULT_CROP: CropConfig = { aspectW: null, aspectH: null, maxDimension: 2048, quality: 0.8 };
 
@@ -35,6 +39,25 @@ export default function Wizard() {
   const [scanFailures, setScanFailures] = useState<ScanFailure[]>([]);
   const thumbUrlsRef = useRef<Map<string, string>>(new Map());
   const scannedForRef = useRef<IntakeFile[] | null>(null);
+  const [shareBannerVisible, setShareBannerVisible] = useState(false);
+
+  // One-time check for a shared-album link param on first mount. Decoding
+  // is async (gzip via CompressionStream), so this can't run inline during
+  // render — the param is stripped via replaceState once consumed so a
+  // page refresh doesn't re-apply it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get(ALBUM_PARAM);
+    if (!encoded) return;
+    decodeAlbumState(encoded).then((payload) => {
+      if (!payload) return;
+      mergeFromShareLink(payload);
+      setShareBannerVisible(true);
+      params.delete(ALBUM_PARAM);
+      const next = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (next ? `?${next}` : ""));
+    });
+  }, []);
 
   // Scanning (decode + hash + thumbnail) is the expensive step at 5,000-photo
   // scale, so it's run once per upload here in Wizard and cached — clicking
@@ -94,7 +117,7 @@ export default function Wizard() {
 
   function handleReviewContinue(files: IntakeFile[]) {
     setFilesToProcess(files);
-    setPhase("configure");
+    setPhase("enhance");
   }
 
   function handleRestart() {
@@ -113,6 +136,9 @@ export default function Wizard() {
   return (
     <>
       <Stepper current={phase} />
+      {shareBannerVisible && (
+        <div className="share-banner">Shared album link applied — tags and preferences were merged in.</div>
+      )}
       {phase === "upload" && <UploadStep onContinue={handleUploadContinue} />}
       {phase === "review" && (
         <ReviewDuplicatesStep
@@ -126,12 +152,30 @@ export default function Wizard() {
           onContinue={handleReviewContinue}
         />
       )}
+      {phase === "enhance" && (
+        <EnhanceStep
+          files={filesToProcess}
+          scanResults={scanResults}
+          thumbnailUrls={thumbUrlsRef.current}
+          onBack={() => setPhase("review")}
+          onContinue={() => setPhase("faces")}
+        />
+      )}
+      {phase === "faces" && (
+        <FaceTagStep
+          files={filesToProcess}
+          scanResults={scanResults}
+          thumbnailUrls={thumbUrlsRef.current}
+          onBack={() => setPhase("enhance")}
+          onContinue={() => setPhase("configure")}
+        />
+      )}
       {phase === "configure" && (
         <ConfigureCropStep
           sampleFile={filesToProcess[0] ?? null}
           cropConfig={cropConfig}
           onChange={setCropConfig}
-          onBack={() => setPhase("review")}
+          onBack={() => setPhase("faces")}
           onContinue={() => setPhase("process")}
         />
       )}
@@ -139,6 +183,7 @@ export default function Wizard() {
         <ProcessExportStep
           files={filesToProcess}
           cropConfig={cropConfig}
+          scanResults={scanResults}
           onBack={() => setPhase("configure")}
           onRestart={handleRestart}
         />
