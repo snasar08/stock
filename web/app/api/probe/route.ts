@@ -8,7 +8,7 @@ import { ffprobeDuration } from "@/lib/ffmpeg";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const CHUNK_SECONDS = 600;
+const CHUNK_SECONDS = 1200;
 
 export async function POST(request: Request): Promise<NextResponse> {
   const { blobUrl } = (await request.json()) as { blobUrl: string };

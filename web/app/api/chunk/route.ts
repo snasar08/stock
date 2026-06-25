@@ -9,7 +9,7 @@ import { transcribeChunk } from "@/lib/groq";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const CHUNK_SECONDS = 600;
+const CHUNK_SECONDS = 1200;
 
 export async function POST(request: Request): Promise<NextResponse> {
   const apiKey = process.env.GROQ_API_KEY;

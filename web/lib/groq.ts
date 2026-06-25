@@ -33,7 +33,7 @@ export async function transcribeChunk(
   const fileBuffer = await readFile(chunkPath);
   const form = new FormData();
   form.append("file", new Blob([fileBuffer]), "chunk.mp3");
-  form.append("model", "whisper-large-v3");
+  form.append("model", "whisper-large-v3-turbo");
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
   form.append("timestamp_granularities[]", "word");
