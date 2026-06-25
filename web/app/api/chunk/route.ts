@@ -67,6 +67,17 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({ segments, nextIndex });
   } catch (error) {
+    try {
+      const parsed = JSON.parse((error as Error).message);
+      if (parsed && parsed.error === "rate_limit") {
+        return NextResponse.json(
+          { error: "rate_limit", retryAfter: parsed.retryAfter },
+          { status: 429 }
+        );
+      }
+    } catch {
+      // not a JSON-encoded rate_limit error
+    }
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 500 }

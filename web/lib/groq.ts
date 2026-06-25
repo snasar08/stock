@@ -46,6 +46,10 @@ export async function transcribeChunk(
   });
 
   if (!res.ok) {
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get("retry-after") || "", 10) || 60;
+      throw new Error(JSON.stringify({ error: "rate_limit", retryAfter }));
+    }
     const errText = await res.text();
     throw new Error(`Groq request failed (${res.status}): ${errText}`);
   }

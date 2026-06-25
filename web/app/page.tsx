@@ -83,10 +83,18 @@ export default function Page() {
             startIndex: nextIndex,
           }),
         });
-        if (!chunkRes.ok) {
-          throw new Error((await chunkRes.json()).error || "Chunk transcription failed");
+        const chunkJson = await chunkRes.json();
+        if (chunkRes.status === 429 && chunkJson.error === "rate_limit") {
+          const retryAfter = chunkJson.retryAfter ?? 60;
+          setStatus(`Rate limit hit, waiting ${retryAfter}s...`);
+          await new Promise((r) => setTimeout(r, retryAfter * 1000));
+          i--;
+          continue;
         }
-        const { segments, nextIndex: ni } = await chunkRes.json();
+        if (!chunkRes.ok) {
+          throw new Error(chunkJson.error || "Chunk transcription failed");
+        }
+        const { segments, nextIndex: ni } = chunkJson;
         allSegments = allSegments.concat(segments);
         nextIndex = ni;
       }
