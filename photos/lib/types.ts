@@ -119,6 +119,8 @@ export interface ExportRequest {
   quality: number;
   filterCss?: string;
   frameRectNorm?: FrameRectNorm;
+  applyAutoRotate?: boolean;
+  exifOrientation?: number;
 }
 
 export interface ExportResponseOk {
@@ -171,7 +173,13 @@ export interface FramePref {
   enabled: boolean;
 }
 
-export type OverrideFeature = "glare" | "frame" | "face";
+export interface RotatePref {
+  photoKey: string;
+  exifOrientation: number; // 3, 6, or 8 — the detected raw EXIF tag value
+  applyAutoRotate: boolean; // true (default) = use the browser's auto-rotated orientation
+}
+
+export type OverrideFeature = "glare" | "frame" | "face" | "rotate";
 
 export interface OverrideLogEntry {
   feature: OverrideFeature;
@@ -185,4 +193,5 @@ export interface AlbumStatePayload {
   faceTags: FaceTagEntry[];
   glarePrefs: GlarePref[];
   framePrefs: FramePref[];
+  rotatePrefs: RotatePref[];
 }
