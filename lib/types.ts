@@ -72,7 +72,7 @@ export interface ExportProgress {
   currentName: string;
 }
 
-export type Phase = "upload" | "review" | "configure" | "process";
+export type Phase = "upload" | "review" | "enhance" | "faces" | "configure" | "process";
 
 // ---- Worker message contracts ----
 
@@ -101,6 +101,13 @@ export interface ScanResponseErr {
 
 export type ScanResponse = ScanResponseOk | ScanResponseErr;
 
+export interface FrameRectNorm {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface ExportRequest {
   id: string;
   file: File | Blob;
@@ -110,6 +117,8 @@ export interface ExportRequest {
   aspectH: number;
   maxDimension: number;
   quality: number;
+  filterCss?: string;
+  frameRectNorm?: FrameRectNorm;
 }
 
 export interface ExportResponseOk {
@@ -140,4 +149,40 @@ export interface ClusterRequest {
 
 export interface ClusterResponse {
   clusters: { clusterId: number; memberIds: string[] }[];
+}
+
+// ---- Persisted feature state (all keyed by content-derived photoKey, see
+// lib/persistence.ts — IntakeFile.id is a fresh crypto.randomUUID() per
+// upload and is never stable enough to persist against) ----
+
+export interface FaceTagEntry {
+  photoKey: string;
+  label: string;
+}
+
+export interface GlarePref {
+  photoKey: string;
+  filterIndex: number;
+}
+
+export interface FramePref {
+  photoKey: string;
+  frameRectNorm: FrameRectNorm | null;
+  enabled: boolean;
+}
+
+export type OverrideFeature = "glare" | "frame" | "face";
+
+export interface OverrideLogEntry {
+  feature: OverrideFeature;
+  chosen: string;
+  auto: string;
+  ts: number;
+}
+
+// Shared-album link payload — metadata only, never image bytes.
+export interface AlbumStatePayload {
+  faceTags: FaceTagEntry[];
+  glarePrefs: GlarePref[];
+  framePrefs: FramePref[];
 }

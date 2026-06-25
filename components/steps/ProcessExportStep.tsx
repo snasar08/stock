@@ -1,27 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { IntakeFile, CropConfig, ExportRequest, ExportResponse } from "@/lib/types";
+import { IntakeFile, CropConfig, ExportRequest, ExportResponse, ScanResult } from "@/lib/types";
 import { WorkerPool } from "@/lib/workerPool";
 import { runExportPipeline } from "@/lib/exportPipeline";
 import { exportZip } from "@/lib/zipExport";
 import { defaultWorkerPoolSize } from "@/lib/capabilities";
+import { buildAlbumPayloadForSession, encodeAlbumState, ALBUM_PARAM } from "@/lib/shareLink";
 
 interface ProcessExportStepProps {
   files: IntakeFile[];
   cropConfig: CropConfig;
+  scanResults: Map<string, ScanResult>;
   onBack: () => void;
   onRestart: () => void;
 }
 
 type RunState = "idle" | "running" | "done" | "error";
+type ShareState = "idle" | "copied" | "error";
 
-export default function ProcessExportStep({ files, cropConfig, onBack, onRestart }: ProcessExportStepProps) {
+export default function ProcessExportStep({ files, cropConfig, scanResults, onBack, onRestart }: ProcessExportStepProps) {
   const [state, setState] = useState<RunState>("idle");
   const [progress, setProgress] = useState({ completed: 0, total: files.length, currentName: "" });
   const [errors, setErrors] = useState<{ name: string; error: string }[]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [shareState, setShareState] = useState<ShareState>("idle");
 
   async function handleExport() {
     setState("running");
@@ -41,6 +45,7 @@ export default function ProcessExportStep({ files, cropConfig, onBack, onRestart
     const generator = runExportPipeline(
       files,
       cropConfig,
+      scanResults,
       pool,
       (completed, total, currentName) => setProgress({ completed, total, currentName }),
       (name, error) => localErrors.push({ name, error })
@@ -60,6 +65,18 @@ export default function ProcessExportStep({ files, cropConfig, onBack, onRestart
       }
     } finally {
       pool.terminate();
+    }
+  }
+
+  async function handleShare() {
+    try {
+      const payload = buildAlbumPayloadForSession(scanResults);
+      const encoded = await encodeAlbumState(payload);
+      const url = `${window.location.origin}${window.location.pathname}?${ALBUM_PARAM}=${encoded}`;
+      await navigator.clipboard.writeText(url);
+      setShareState("copied");
+    } catch {
+      setShareState("error");
     }
   }
 
@@ -96,6 +113,16 @@ export default function ProcessExportStep({ files, cropConfig, onBack, onRestart
             </div>
           )}
           <div>Your download should have started — check your downloads folder.</div>
+        </div>
+      )}
+
+      {state === "done" && (
+        <div className="upload-actions">
+          <button className="btn" onClick={handleShare}>
+            Share Album
+          </button>
+          {shareState === "copied" && <span className="hint">Link copied to clipboard</span>}
+          {shareState === "error" && <span className="hint">Couldn&apos;t copy link</span>}
         </div>
       )}
 
