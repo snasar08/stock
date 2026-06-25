@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { Segment, Meta, writeTxt, writeJson, writeSrt, writeXml } from "@/lib/format";
-import { addSpeakersGap } from "@/lib/speakers";
 
 interface DownloadFile {
   name: string;
@@ -68,6 +67,8 @@ export default function Page() {
 
       let allSegments: Segment[] = [];
       let nextIndex = 0;
+      let lastSpeaker = "Speaker 1";
+      let lastEnd = 0;
 
       for (let i = 0; i < totalChunks; i++) {
         setStatus(`Transcribing chunk ${i + 1} of ${totalChunks}`);
@@ -81,6 +82,8 @@ export default function Page() {
             chunkIndex: i,
             duration,
             startIndex: nextIndex,
+            lastSpeaker,
+            lastEnd,
           }),
         });
         const chunkJson = await chunkRes.json();
@@ -94,14 +97,12 @@ export default function Page() {
         if (!chunkRes.ok) {
           throw new Error(chunkJson.error || "Chunk transcription failed");
         }
-        const { segments, nextIndex: ni } = chunkJson;
+        const { segments, nextIndex: ni, lastSpeaker: ls, lastEnd: le } = chunkJson;
         allSegments = allSegments.concat(segments);
         nextIndex = ni;
+        lastSpeaker = ls;
+        lastEnd = le;
       }
-
-      setProgress(92);
-      setStatus("Detecting speakers…");
-      allSegments = addSpeakersGap(allSegments);
 
       setProgress(96);
       setStatus("Writing outputs…");

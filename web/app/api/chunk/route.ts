@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { toChunk } from "@/lib/ffmpeg";
 import { transcribeChunk } from "@/lib/groq";
+import { labelSpeakers } from "@/lib/speakers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,13 +21,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { blobUrl, chunkIndex, duration, startIndex, language } =
+  const { blobUrl, chunkIndex, duration, startIndex, language, lastSpeaker, lastEnd } =
     (await request.json()) as {
       blobUrl: string;
       chunkIndex: number;
       duration: number;
       startIndex: number;
       language?: string;
+      lastSpeaker?: string;
+      lastEnd?: number;
     };
 
   if (!blobUrl || chunkIndex == null || duration == null) {
@@ -51,7 +54,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     const start = chunkIndex * CHUNK_SECONDS;
     const cdur = Math.min(CHUNK_SECONDS, duration - start);
     if (cdur <= 0) {
-      return NextResponse.json({ segments: [], nextIndex: startIndex ?? 0 });
+      return NextResponse.json({
+        segments: [],
+        nextIndex: startIndex ?? 0,
+        lastSpeaker: lastSpeaker ?? "Speaker 1",
+        lastEnd: lastEnd ?? 0,
+      });
     }
 
     await toChunk(sourcePath, chunkPath, start, cdur);
@@ -65,7 +73,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       apiKey
     );
 
-    return NextResponse.json({ segments, nextIndex });
+    const speakerState = labelSpeakers(segments, {
+      lastSpeaker: lastSpeaker ?? "Speaker 1",
+      lastEnd: lastEnd ?? 0,
+    });
+
+    return NextResponse.json({
+      segments,
+      nextIndex,
+      lastSpeaker: speakerState.lastSpeaker,
+      lastEnd: speakerState.lastEnd,
+    });
   } catch (error) {
     try {
       const parsed = JSON.parse((error as Error).message);
