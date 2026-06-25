@@ -204,7 +204,11 @@ export default function ReviewDuplicatesStep({
         <button className="btn" onClick={onBack}>
           Back
         </button>
-        <button className="btn btn-primary" onClick={() => onContinue(finalFiles)} disabled={finalFiles.length === 0}>
+        <button
+          className="btn btn-primary"
+          onClick={() => onContinue(finalFiles)}
+          disabled={finalFiles.length === 0 || clustering}
+        >
           Continue ({finalFiles.length.toLocaleString()})
         </button>
       </div>
