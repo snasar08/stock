@@ -1,4 +1,4 @@
-import { ScanResult, FaceTagEntry, GlarePref, FramePref, AlbumStatePayload } from "./types";
+import { ScanResult, FaceTagEntry, GlarePref, FramePref, RotatePref, AlbumStatePayload } from "./types";
 
 // localStorage key is content-derived (hash + dimensions), not IntakeFile.id
 // — id is a fresh crypto.randomUUID() per upload (see lib/fileIntake.ts) and
@@ -14,6 +14,7 @@ const KEYS = {
   faceTags: "pbp:faceTags:v1",
   glarePrefs: "pbp:glarePrefs:v1",
   framePrefs: "pbp:framePrefs:v1",
+  rotatePrefs: "pbp:rotatePrefs:v1",
   learningLog: "pbp:learningLog:v1",
 } as const;
 
@@ -70,6 +71,17 @@ export function setFramePref(pref: FramePref): void {
   writeJson(KEYS.framePrefs, Array.from(map.values()));
 }
 
+export function getRotatePrefs(): Map<string, RotatePref> {
+  const list = readJson<RotatePref[]>(KEYS.rotatePrefs, []);
+  return new Map(list.map((e) => [e.photoKey, e]));
+}
+
+export function setRotatePref(pref: RotatePref): void {
+  const map = getRotatePrefs();
+  map.set(pref.photoKey, pref);
+  writeJson(KEYS.rotatePrefs, Array.from(map.values()));
+}
+
 export function getLearningLogRaw(): unknown[] {
   return readJson<unknown[]>(KEYS.learningLog, []);
 }
@@ -99,4 +111,10 @@ export function mergeFromShareLink(payload: AlbumStatePayload): void {
     if (!frame.has(e.photoKey)) frame.set(e.photoKey, e);
   }
   writeJson(KEYS.framePrefs, Array.from(frame.values()));
+
+  const rotate = getRotatePrefs();
+  for (const e of payload.rotatePrefs) {
+    if (!rotate.has(e.photoKey)) rotate.set(e.photoKey, e);
+  }
+  writeJson(KEYS.rotatePrefs, Array.from(rotate.values()));
 }

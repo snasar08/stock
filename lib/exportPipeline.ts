@@ -2,7 +2,7 @@ import { IntakeFile, CropConfig, ExportRequest, ExportResponse, ScanResult } fro
 import { WorkerPool } from "./workerPool";
 import { prepareSourceForWorker } from "./imageDecode";
 import { ZipEntryInput } from "./zipExport";
-import { photoKey, getGlarePrefs, getFramePrefs } from "./persistence";
+import { photoKey, getGlarePrefs, getFramePrefs, getRotatePrefs } from "./persistence";
 import { GLARE_FILTER_VARIANTS } from "./glare";
 
 export const EXPORT_CHUNK_SIZE = 250;
@@ -29,6 +29,7 @@ export async function* runExportPipeline(
   // change via UI in earlier wizard steps, not mid-export.
   const glarePrefs = getGlarePrefs();
   const framePrefs = getFramePrefs();
+  const rotatePrefs = getRotatePrefs();
 
   for (let start = 0; start < files.length; start += EXPORT_CHUNK_SIZE) {
     const chunk = files.slice(start, start + EXPORT_CHUNK_SIZE);
@@ -44,6 +45,8 @@ export async function* runExportPipeline(
           // falls back to no filter / no frame crop.
           let filterCss: string | undefined;
           let frameRectNorm: ExportRequest["frameRectNorm"];
+          let applyAutoRotate: boolean | undefined;
+          let exifOrientation: number | undefined;
           const scan = scanResults.get(f.id);
           if (scan) {
             const key = photoKey(scan);
@@ -54,6 +57,20 @@ export async function* runExportPipeline(
             const framePref = framePrefs.get(key);
             if (framePref && framePref.enabled && framePref.frameRectNorm) {
               frameRectNorm = framePref.frameRectNorm;
+            }
+            const rotatePref = rotatePrefs.get(key);
+            if (rotatePref && !rotatePref.applyAutoRotate) {
+              applyAutoRotate = false;
+              exifOrientation = rotatePref.exifOrientation;
+              // The frame rect was detected against the thumbnail's
+              // auto-rotated (width/height-swapped, for orientation 6/8)
+              // dimensions. Opting out of auto-rotation for those two
+              // orientations makes that rect invalid against the unrotated
+              // bitmap, so drop it rather than export a misplaced crop.
+              // Orientation 3 (180°) doesn't swap dimensions, so it's fine.
+              if (rotatePref.exifOrientation === 6 || rotatePref.exifOrientation === 8) {
+                frameRectNorm = undefined;
+              }
             }
           }
 
@@ -68,6 +85,8 @@ export async function* runExportPipeline(
             quality: cropConfig.quality,
             filterCss,
             frameRectNorm,
+            applyAutoRotate,
+            exifOrientation,
           };
           const res = await pool.run(req);
           completed++;

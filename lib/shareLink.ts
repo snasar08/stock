@@ -1,5 +1,5 @@
 import { AlbumStatePayload, ScanResult } from "./types";
-import { photoKey, getFaceTags, getGlarePrefs, getFramePrefs } from "./persistence";
+import { photoKey, getFaceTags, getGlarePrefs, getFramePrefs, getRotatePrefs } from "./persistence";
 
 export const ALBUM_PARAM = "album";
 
@@ -71,8 +71,9 @@ export function buildAlbumPayloadForSession(scanResults: Map<string, ScanResult>
     .map(([key, label]) => ({ photoKey: key, label }));
   const glarePrefs = Array.from(getGlarePrefs().values()).filter((p) => keys.has(p.photoKey));
   const framePrefs = Array.from(getFramePrefs().values()).filter((p) => keys.has(p.photoKey));
+  const rotatePrefs = Array.from(getRotatePrefs().values()).filter((p) => keys.has(p.photoKey));
 
-  return { faceTags, glarePrefs, framePrefs };
+  return { faceTags, glarePrefs, framePrefs, rotatePrefs };
 }
 
 export async function encodeAlbumState(payload: AlbumStatePayload): Promise<string> {
