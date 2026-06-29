@@ -1,4 +1,11 @@
-import { del, get, put } from "@vercel/blob";
+import {
+  completeMultipartUpload,
+  createMultipartUpload,
+  del,
+  get,
+  put,
+  uploadPart,
+} from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -33,19 +40,45 @@ export async function POST(request: Request): Promise<NextResponse> {
     const priorUrls: string[] = priorUrlsRaw ? JSON.parse(priorUrlsRaw) : [];
     const allTempUrls = [...priorUrls, tempBlob.url];
 
-    const buffers: Buffer[] = [];
-    for (const url of allTempUrls) {
+    const MIN_PART_SIZE = 5 * 1024 * 1024;
+    const { key, uploadId: multipartUploadId } = await createMultipartUpload(filename, {
+      access: "private",
+      addRandomSuffix: true,
+    });
+
+    const parts: { etag: string; partNumber: number }[] = [];
+    let pending: Buffer[] = [];
+    let pendingSize = 0;
+    let partNumber = 1;
+
+    for (let i = 0; i < allTempUrls.length; i++) {
+      const url = allTempUrls[i];
       const result = await get(url, { access: "private" });
       if (!result || result.statusCode !== 200) {
         throw new Error(`Failed to fetch temp chunk: ${url}`);
       }
-      buffers.push(Buffer.from(await new Response(result.stream).arrayBuffer()));
-    }
-    const merged = Buffer.concat(buffers);
+      pending.push(Buffer.from(await new Response(result.stream).arrayBuffer()));
+      pendingSize += pending[pending.length - 1].length;
 
-    const finalBlob = await put(filename, merged, {
+      const isLast = i === allTempUrls.length - 1;
+      if (pendingSize >= MIN_PART_SIZE || isLast) {
+        const part = await uploadPart(filename, Buffer.concat(pending), {
+          uploadId: multipartUploadId,
+          key,
+          partNumber,
+          access: "private",
+        });
+        parts.push(part);
+        partNumber += 1;
+        pending = [];
+        pendingSize = 0;
+      }
+    }
+
+    const finalBlob = await completeMultipartUpload(filename, parts, {
+      uploadId: multipartUploadId,
+      key,
       access: "private",
-      addRandomSuffix: true,
     });
 
     await Promise.all(allTempUrls.map((url) => del(url).catch(() => undefined)));
