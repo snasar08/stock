@@ -96,6 +96,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     } catch {
       // not a JSON-encoded rate_limit error
     }
+    console.error(
+      `/api/chunk failed for blobUrl=${blobUrl}, chunkIndex=${chunkIndex}, duration=${duration}:`,
+      (error as Error).stack || (error as Error).message || error
+    );
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 500 }

@@ -48,23 +48,29 @@ export async function toChunk(
   start: number,
   dur: number
 ): Promise<void> {
-  await execFileAsync(ffmpegPath, [
-    "-y",
-    "-f",
-    "m4a",
-    "-i",
-    src,
-    "-ss",
-    String(start),
-    "-t",
-    String(dur),
-    "-vn",
-    "-ac",
-    "1",
-    "-ar",
-    "16000",
-    "-b:a",
-    "32k",
-    dst,
-  ]);
+  try {
+    await execFileAsync(ffmpegPath, [
+      "-y",
+      "-f",
+      "m4a",
+      "-i",
+      src,
+      "-ss",
+      String(start),
+      "-t",
+      String(dur),
+      "-vn",
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-b:a",
+      "32k",
+      dst,
+    ]);
+  } catch (error) {
+    const e = error as { stderr?: string; message?: string };
+    console.error(`toChunk failed for ${src} (start=${start}, dur=${dur}):`, e.stderr || e.message || error);
+    throw new Error(`ffmpeg failed: ${e.stderr || e.message || error}`);
+  }
 }
