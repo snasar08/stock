@@ -12,7 +12,7 @@ export function labelSpeakers(
   let { lastSpeaker, lastEnd } = state;
   for (const s of segments) {
     const gap = s.start - lastEnd;
-    if (gap > 1.5) {
+    if (gap > 0.5) {
       lastSpeaker = lastSpeaker === "Speaker 1" ? "Speaker 2" : "Speaker 1";
     }
     s.speaker = lastSpeaker;
