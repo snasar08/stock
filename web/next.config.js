@@ -11,6 +11,7 @@ const nextConfig = {
         "./node_modules/ffmpeg-static/ffmpeg",
         "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
       ],
+      "/api/selftest": ["./node_modules/ffmpeg-static/ffmpeg"],
     },
   },
 };
