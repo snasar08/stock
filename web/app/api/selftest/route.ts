@@ -69,6 +69,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         else priorUrls.push(j.url!);
       }
       const done = upTo >= total;
+      console.log(`selftest upload result: ${JSON.stringify({ done, blobUrl, nextFrom: upTo, total })}`);
       return NextResponse.json({
         ok: true,
         done,
@@ -90,6 +91,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         body: JSON.stringify({ blobUrl }),
       });
       const j = await res.json();
+      console.log(`selftest probe result: ${JSON.stringify({ ok: res.ok, status: res.status, ...j })}`);
       return NextResponse.json({ ok: res.ok, status: res.status, ...j });
     }
 
@@ -111,7 +113,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         segments?: unknown[]; nextIndex?: number; lastSpeaker?: string; lastEnd?: number;
         error?: string; retryAfter?: number;
       };
-      return NextResponse.json({
+      const out = {
         ok: res.ok,
         status: res.status,
         segmentCount: j.segments?.length,
@@ -120,7 +122,9 @@ export async function GET(request: Request): Promise<NextResponse> {
         lastEnd: j.lastEnd,
         error: j.error,
         retryAfter: j.retryAfter,
-      });
+      };
+      console.log(`selftest chunk ${u.searchParams.get("i")} result: ${JSON.stringify(out)}`);
+      return NextResponse.json(out);
     }
 
     return NextResponse.json({ error: "unknown step" }, { status: 400 });
