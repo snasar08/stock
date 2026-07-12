@@ -27,6 +27,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
+  let step = "stage-chunk";
   try {
     const tempBlob = await put(`tmp/${uploadId}/${index}`, chunk, {
       access: "private",
@@ -41,6 +42,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const allTempUrls = [...priorUrls, tempBlob.url];
 
     const MIN_PART_SIZE = 5 * 1024 * 1024;
+    step = "createMultipartUpload";
     const { key, uploadId: multipartUploadId } = await createMultipartUpload(filename, {
       access: "private",
       addRandomSuffix: true,
@@ -53,6 +55,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     for (let i = 0; i < allTempUrls.length; i++) {
       const url = allTempUrls[i];
+      step = `get temp chunk ${i + 1}/${allTempUrls.length}`;
       const result = await get(url, { access: "private" });
       if (!result || result.statusCode !== 200) {
         throw new Error(`Failed to fetch temp chunk: ${url}`);
@@ -62,6 +65,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       const isLast = i === allTempUrls.length - 1;
       if (pendingSize >= MIN_PART_SIZE || isLast) {
+        step = `uploadPart ${partNumber} (${pendingSize} bytes)`;
         const part = await uploadPart(filename, Buffer.concat(pending), {
           uploadId: multipartUploadId,
           key,
@@ -75,16 +79,30 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
+    step = `completeMultipartUpload (${parts.length} parts)`;
     const finalBlob = await completeMultipartUpload(filename, parts, {
       uploadId: multipartUploadId,
       key,
       access: "private",
     });
 
-    await Promise.all(allTempUrls.map((url) => del(url).catch(() => undefined)));
+    await Promise.all(
+      allTempUrls.map((url) =>
+        del(url).catch((e) =>
+          console.error(`blob-upload: temp cleanup failed for ${url}:`, e)
+        )
+      )
+    );
 
     return NextResponse.json({ done: true, url: finalBlob.url });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    console.error(
+      `blob-upload failed at step "${step}" (uploadId=${uploadId}, index=${index}, total=${total}, filename=${filename}):`,
+      (error as Error).stack || (error as Error).message || error
+    );
+    return NextResponse.json(
+      { error: `${step}: ${(error as Error).message}` },
+      { status: 500 }
+    );
   }
 }

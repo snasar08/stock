@@ -51,8 +51,6 @@ export async function toChunk(
   try {
     await execFileAsync(ffmpegPath, [
       "-y",
-      "-f",
-      "m4a",
       "-i",
       src,
       "-ss",
