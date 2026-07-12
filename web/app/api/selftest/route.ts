@@ -21,7 +21,14 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     if (step === "upload") {
       // Build a 3-hour CBR mp3: encode 10 minutes once, repeat 18x.
+      // Deterministic, so resumable batches can regenerate it per call.
       const hours = Number(u.searchParams.get("hours") || 3);
+      const from = Number(u.searchParams.get("from") || 0);
+      const count = Number(u.searchParams.get("count") || 5);
+      const uploadId = u.searchParams.get("uploadId") || crypto.randomUUID();
+      const priorRaw = u.searchParams.get("prior") || "";
+      const priorUrls = priorRaw ? priorRaw.split(",") : [];
+
       const dir = await mkdtemp(path.join(tmpdir(), "selftest-"));
       const piece = path.join(dir, "piece.mp3");
       await execFileAsync(ffmpegPath, [
@@ -30,17 +37,15 @@ export async function GET(request: Request): Promise<NextResponse> {
       ]);
       const pieceBuf = await readFile(piece);
       await rm(dir, { recursive: true, force: true });
-      const repeats = hours * 6;
-      const data = Buffer.concat(Array(repeats).fill(pieceBuf));
+      const data = Buffer.concat(Array(hours * 6).fill(pieceBuf));
 
       const CHUNK_SIZE = 4 * 1024 * 1024;
       const total = Math.ceil(data.length / CHUNK_SIZE);
-      const uploadId = crypto.randomUUID();
-      const priorUrls: string[] = [];
+      const upTo = Math.min(from + count, total);
       let blobUrl = "";
       const timings: number[] = [];
 
-      for (let i = 0; i < total; i++) {
+      for (let i = from; i < upTo; i++) {
         const start = i * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, data.length);
         const fd = new FormData();
@@ -63,7 +68,18 @@ export async function GET(request: Request): Promise<NextResponse> {
         if (j.done) blobUrl = j.url!;
         else priorUrls.push(j.url!);
       }
-      return NextResponse.json({ ok: true, blobUrl, bytes: data.length, uploadChunks: total, timings });
+      const done = upTo >= total;
+      return NextResponse.json({
+        ok: true,
+        done,
+        blobUrl: done ? blobUrl : undefined,
+        uploadId,
+        nextFrom: upTo,
+        total,
+        bytes: data.length,
+        prior: done ? undefined : priorUrls.join(","),
+        timings,
+      });
     }
 
     if (step === "probe") {
